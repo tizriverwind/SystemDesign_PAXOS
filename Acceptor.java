@@ -1,3 +1,5 @@
+
+
 public class Acceptor {
     private int highestProposalNumber = 0;
     private String acceptedValue = null;
@@ -8,15 +10,15 @@ public class Acceptor {
     }
 
     /**
-     * Receives a proposal from a proposer.
-     * @param proposal The proposal being received.
-     * @return true if the proposal is accepted, false otherwise.
+     * Receives a proposal from a proposer and promises to accept if the proposal number is higher.
+     * @param message The proposal message being received.
+     * @return true if the proposal is higher and accepted for promise, false otherwise.
      */
-    public synchronized boolean receiveProposal(Proposer.Proposal proposal) {
+    public synchronized boolean receiveProposal(Proposer.Message message) {
         // Check if the received proposal's number is higher than any previously received
-        if (proposal.getProposalNumber() > highestProposalNumber) {
-            highestProposalNumber = proposal.getProposalNumber();  // Update the highest proposal number seen so far
-            // Optionally, you might want to log or perform other actions here
+        if (message.getType() == Proposer.Message.MessageType.PROMISE && message.getProposalNumber() > highestProposalNumber) {
+            highestProposalNumber = message.getProposalNumber(); 
+            /// sendMessage(new Proposer.Message(Proposer.Message.MessageType.PROMISE, message.getProposalNumber(), message.getKey(), null));
             return true;  // Promise to not accept any earlier proposals
         }
         return false;  // Reject if an equal or higher proposal has been seen
@@ -24,18 +26,26 @@ public class Acceptor {
 
     /**
      * Accepts the proposal if it matches the highest proposal number promised.
-     * @param proposal The proposal to be accepted.
+     * @param message The accept_request message to be accepted.
+     * @return true if the proposal was accepted, false otherwise.
      */
-    public synchronized void acceptProposal(Proposer.Proposal proposal) {
-        // Accept the proposal only if it matches the highest proposal number promised
-        if (proposal.getProposalNumber() == highestProposalNumber) {
-            acceptedValue = proposal.getProposedValue();  // Set the value as accepted
-            acceptedProposalNumber = proposal.getProposalNumber();  // Record which proposal number was accepted
+    public synchronized boolean acceptProposal(Proposer.Message message) {
+
+        if (message.getType() == Proposer.Message.MessageType.ACCEPT_REQUEST && message.getProposalNumber() == highestProposalNumber) {
+            acceptedValue = message.getValue(); // Set the value as accepted value
+            acceptedProposalNumber = message.getProposalNumber();
+        // if (proposal.getProposalNumber() == highestProposalNumber) {
+        //     acceptedValue = proposal.getProposedValue();  // Set the value as accepted
+        //     acceptedProposalNumber = proposal.getProposalNumber();  // Record which proposal number was accepted
             System.out.println("Accepted proposal number " + acceptedProposalNumber + " with value: " + acceptedValue);
+            return true;
         } else {
-            System.out.println("Failed to accept proposal number " + proposal.getProposalNumber() + " as it does not match the highest promised proposal number " + highestProposalNumber);
+            System.out.println("Failed to accept proposal number " + message.getProposalNumber() + " as it does not match the highest promised proposal number " + highestProposalNumber);
+            return false;
         }
     }
+
+
 
     // Optional: method to get the current state of the acceptor
     public synchronized String getAcceptedValue() {

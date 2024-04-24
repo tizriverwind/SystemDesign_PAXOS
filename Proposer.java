@@ -1,7 +1,11 @@
+import java.rmi.RemoteException;
+import java.rmi.registry.LocateRegistry;
+import java.rmi.registry.Registry;
 import java.util.List;
 // import java.rmi.Naming; // if using RMI for communication
 
 public class Proposer {
+
     private int lastProposalNumber = 0;
     private final List<Acceptor> acceptors; // List of acceptor objects directly
     private final int majority; // Majority size needed to accept a proposal
@@ -11,14 +15,14 @@ public class Proposer {
         this.majority = (acceptors.size()/2) + 1; // Need 3 to reach consensus
     }
 
-    public void propose(String value) {
+    public void propose(String key, String value) {
         lastProposalNumber++; // Ensure a unique, incrementing proposal number
-        Proposal proposal = new Proposal(lastProposalNumber, value);
-        sendProposalToAcceptors(proposal);
+        Message proposalMessage = new Message(Message.MessageType.PROPOSE, lastProposalNumber, key, value);
+        sendProposalToAcceptors(proposalMessage);
     }
 
     // Send the proposal to all acceptors
-    private void sendProposalToAcceptors(Proposal proposal) {
+    private void sendProposalToAcceptors(Message message) {
         int promiseCount = 0;
         // for (Acceptor acceptor : acceptors) {
         //     try {  
@@ -33,23 +37,47 @@ public class Proposer {
         //     }
         // }
         for (Acceptor acceptor : acceptors) {
-            if (acceptor.receiveProposal(proposal)) {
+            if (acceptor.receiveProposal(message)) {
                 promiseCount++;
             }
         }
         if (promiseCount >= majority) {
             // If enough promises are received, consider this proposal accepted by the quorum
-            commitProposal(proposal);
+            commitProposal(message);
         }
     }
 
+    public static class Message {
+        public enum MessageType { PROPOSE, PROMISE, ACCEPT_REQUEST, ACCEPTED}
+        private MessageType type;
+        private int proposalNumber;
+        private String key;
+        private String value;
+
+        public Message(MessageType type, int proposalNumber, String key, String value) {
+            this.type = type;
+            this.proposalNumber = proposalNumber;
+            this.key = key;
+            this.value = value;
+        }
+
+        public MessageType getType() { return type; }
+        public int getProposalNumber() { return proposalNumber; }
+        public String getKey() { return key; }
+        public String getValue() { return value; }
+
+    }
+
+    
     // Method to commit the proposal
-    private void commitProposal(Proposal proposal) {
+    private void commitProposal(Message message) {
+        message = new Message(Message.MessageType.ACCEPT_REQUEST, message.getProposalNumber(), message.getKey(), message.getValue());
         int commitCount = 0;  // To count how many acceptors have successfully committed the proposal
         for (Acceptor acceptor : acceptors) {
             try {
-                acceptor.acceptProposal(proposal);  // Assuming this method could throw an exception if commit fails
-                commitCount++;  // Increment only if acceptProposal does not throw an exception
+                if (acceptor.acceptProposal(message)) {
+                    commitCount++;  // Increment only if acceptProposal does not throw an exception
+                }       
             } catch (Exception e) {
                 System.out.println("Error during commit on acceptor: " + e.getMessage());
                 // Optionally implement retry logic here or just continue to try with other acceptors
@@ -57,9 +85,9 @@ public class Proposer {
         }
         // Check if the commit was successful on a majority of acceptors
         if (commitCount >= majority) {
-            System.out.println("Proposal " + proposal.getProposalNumber() + " committed with value: " + proposal.getProposedValue());
+            System.out.println("Commit successful for proposal number " + message.getProposalNumber() + ", committed with value: " + message.getValue());
         } else {
-            System.out.println("Failed to achieve majority commit for proposal " + proposal.getProposalNumber());
+            System.out.println("Commit failed to achieve for proposal number " + message.getProposalNumber());
             // Handle the failure case, perhaps by retrying the proposal or aborting the process
         }
     }
