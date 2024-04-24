@@ -52,7 +52,7 @@ public class RmiClient {
             int stubIndex = (i - 1) % stubsList.size(); // 计算当前使用的 stub 索引
             KVSInterface stub = stubsList.get(stubIndex); // 获取当前使用的 stub
             try {
-                System.out.println(stub.put("" + i*1000, "" + i*-20));
+                System.out.println(stub.PUT("" + i*1000, "" + i*-20));
             } catch (RemoteException e) {
                 System.out.println("RmiClient error:  unsuccessful for stub on port " + (port + stubIndex) + " (Test " + i + ")");
             }
@@ -61,7 +61,7 @@ public class RmiClient {
             int stubIndex = (i - 1) % stubsList.size(); // 计算当前使用的 stub 索引
             KVSInterface stub = stubsList.get(stubIndex); // 获取当前使用的 stub
             try {
-                System.out.println(stub.get("" + i*1000));
+                System.out.println(stub.GET("" + i*1000));
             } catch (RemoteException e) {
                 System.out.println("RmiClient error: unsuccessful try for stub on port " + (port + stubIndex) + " (Test " + i + ")");
             }
@@ -70,7 +70,7 @@ public class RmiClient {
             int stubIndex = (i - 1) % stubsList.size(); // 计算当前使用的 stub 索引
             KVSInterface stub = stubsList.get(stubIndex); // 获取当前使用的 stub
             try {
-                System.out.println(stub.delete("" + i*1000));
+                System.out.println(stub.DELETE("" + i*1000));
             } catch (RemoteException e) {
                 System.out.println("RmiClient error: tryFive unsuccessful for stub on port " + (port + stubIndex) + " (Test " + i + ")");
             }
@@ -83,12 +83,12 @@ public class RmiClient {
         while (!stop) {
             requestNum = requestNum%5;
             System.out.print("Please enter your commands <PUT, GET, DELETE or exit>): ");
-            String input = scanner.nextLine().trim();
-            if (input.equals("stop")) {
+            String inPUT = scanner.nextLine().trim();
+            if (inPUT.equals("stop")) {
                 stop = true;
                 break;
             }
-            String[] result = processCommand(input);
+            String[] result = processCommand(inPUT);
             if (result == null) {
                 continue;
             } else {
@@ -119,13 +119,13 @@ public class RmiClient {
         try {
             System.out.println("RmiClient: First five try start.");
             for (int i = 1; i <= 5; i++) {
-                System.out.println(stub.put("" + i*1000, "" + i*-20));
+                System.out.println(stub.PUT("" + i*1000, "" + i*-20));
             }
             for (int i = 1; i <= 5; i++) {
-                System.out.println(stub.put("" + i*1000, "" + i*-20));
+                System.out.println(stub.PUT("" + i*1000, "" + i*-20));
             }
             for (int i = 1; i <= 5; i++) {
-                System.out.println(stub.put("" + i*1000, "" + i*-20));
+                System.out.println(stub.PUT("" + i*1000, "" + i*-20));
             }
             System.out.println("RmiClient: First five try end.");
         } catch (RemoteException e) {
@@ -142,7 +142,7 @@ public class RmiClient {
         String[] parts = command.split("\\s+"); // 使用空白字符分割命令
 
         if (parts.length == 0) {
-            System.out.println("RmiClient error: The input is not standardized and the command cannot be empty.");
+            System.out.println("RmiClient error: The inPUT is not standardized and the command cannot be empty.");
             return null;
         }
 
@@ -151,19 +151,19 @@ public class RmiClient {
         switch (action) {
             case "PUT":
                 if (parts.length != 3) {
-                    System.out.println("RmiClient error: The input is not standardized，PUT needs two parameters.");
+                    System.out.println("RmiClient error: The inPUT is not standardized，PUT needs two parameters.");
                     return null;
                 }
                 break;
             case "GET":
             case "DELETE":
                 if (parts.length != 2) {
-                    System.out.println("RmiClient error: The input is not standardized，GET needs one parameters.");
+                    System.out.println("RmiClient error: The inPUT is not standardized，GET needs one parameters.");
                     return null;
                 }
                 break;
             default:
-                System.out.println("RmiClient error: The input is not standardized with " + action);
+                System.out.println("RmiClient error: The inPUT is not standardized with " + action);
                 return null;
         }
 
@@ -185,11 +185,11 @@ public class RmiClient {
             String action = commandParts[0];
             switch (action) {
                 case "PUT":
-                    return stub.put(commandParts[1], commandParts[2]);
+                    return stub.PUT(commandParts[1], commandParts[2]);
                 case "GET":
-                    return stub.get(commandParts[1]);
+                    return stub.GET(commandParts[1]);
                 case "DELETE":
-                    return stub.delete(commandParts[1]);
+                    return stub.DELETE(commandParts[1]);
                 default:
                     return "Unrecognized command: " + action;
             }

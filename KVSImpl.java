@@ -31,9 +31,9 @@ public class KVSImpl extends UnicastRemoteObject implements KVSInterface {
     /**
      * Prepares the server for an operation (PUT or DELETE) by acquiring a lock and checking for conflicts.
      *
-     * @param key The key to be put or deleted.
+     * @param key The key to be PUT or deleted.
      * @param value The value to be associated with the key (ignored for DELETE operation).
-     * @param operation The type of operation ("put" or "delete").
+     * @param operation The type of operation ("PUT" or "delete").
      * @return {@code true} if the operation can proceed (no conflicts and lock acquired),
      *         {@code false} otherwise.
      * @throws RemoteException if a remote communication error occurs.
@@ -41,18 +41,18 @@ public class KVSImpl extends UnicastRemoteObject implements KVSInterface {
     public boolean prepareToOperation(String key, String value, String operation) throws RemoteException {
         ReentrantLock lock = locks.computeIfAbsent(key, k -> new ReentrantLock());
         if (lock.tryLock()) {
-            if ("put".equals(operation) && dictionary.containsKey(key)) {
-                System.out.println("port "+port+" already has the key, refuse to put.");
+            if ("PUT".equals(operation) && dictionary.containsKey(key)) {
+                System.out.println("port "+port+" already has the key, refuse to PUT.");
                 lock.unlock();
                 return false;
-            } else if ("delete".equals(operation) && !dictionary.containsKey(key)) {
+            } else if ("DELETE".equals(operation) && !dictionary.containsKey(key)) {
                 System.out.println("port "+port+" has no such key, refuse to delete.");
                 lock.unlock();
                 return false;
             }
             return true;
         } else {
-            System.out.println("port "+port+" because of some reason, maybe lock, can't put.");
+            System.out.println("port "+port+" because of some reason, maybe lock, can't PUT.");
             return false;
         }
     }
@@ -60,18 +60,18 @@ public class KVSImpl extends UnicastRemoteObject implements KVSInterface {
      * Commits an update to the dictionary by performing the actual PUT or DELETE operation,
      * and then releases the lock associated with the key.
      *
-     * @param key The key to be put or deleted.
+     * @param key The key to be PUT or deleted.
      * @param value The value to be associated with the key (ignored for DELETE operation).
-     * @param operation The type of operation ("put" or "delete").
+     * @param operation The type of operation ("PUT" or "delete").
      * @throws RemoteException if a remote communication error occurs.
      */
     public void allServerUpdate(String key, String value, String operation) throws RemoteException {
         ReentrantLock lock = locks.get(key);
         if (lock != null && lock.isHeldByCurrentThread()) {
             try {
-                if ("put".equals(operation)) {
+                if ("PUT".equals(operation)) {
                     dictionary.put(key, value);
-                } else if ("delete".equals(operation)) {
+                } else if ("DELETE".equals(operation)) {
                     dictionary.remove(key);
                 }
             } finally {
@@ -80,22 +80,22 @@ public class KVSImpl extends UnicastRemoteObject implements KVSInterface {
         }
     }
     /**
-     * Puts a key-value pair into the dictionary.
+     * PUTs a key-value pair into the dictionary.
      *
      * @param key The key to be added or updated.
      * @param value The value associated with the key.
      * @return A success message if the operation is successful, or an error message if the key already exists.
      * @throws RemoteException If a remote method call fails.
      */
-    public String put(String key, String value) throws RemoteException {
+    public String PUT(String key, String value) throws RemoteException {
         SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss.SSS");
         try {
-            if (!prepareToOperation(key, value, "put")) {
+            if (!prepareToOperation(key, value, "PUT")) {
                 return "KVSImpl on port " + port + " error: Not allowed by self-checking. Current time: " + sdf.format(new Date(System.currentTimeMillis()));
-            } else if (!server.askAllServer(key, value, "put")) {
+            } else if (!server.askAllServer(key, value, "PUT")) {
                 return "KVSImpl on port " + port + " error: Not allowed by other server. Current time: " + sdf.format(new Date(System.currentTimeMillis()));
             }
-            server.allServerDoRealUpdate(key, value, "put");
+            server.allServerDoRealUpdate(key, value, "PUT");
 
         } catch (RemoteException e) {
             //e.printStackTrace();
@@ -112,7 +112,7 @@ public class KVSImpl extends UnicastRemoteObject implements KVSInterface {
      * @throws RemoteException If a remote method call fails.
      */
     @Override
-    public String get(String key) {
+    public String GET(String key) {
         SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss.SSS");
         //System.out.println("Current time: " + sdf.format(new Date(System.currentTimeMillis())));
         if (!dictionary.containsKey(key)){
@@ -123,29 +123,52 @@ public class KVSImpl extends UnicastRemoteObject implements KVSInterface {
                 + "Current time: " + sdf.format(new Date(System.currentTimeMillis()));
     }
     /**
-     * Deletes a key-value pair from the dictionary.
+     * DELETEs a key-value pair from the dictionary.
      *
      * @param key The key to be deleted.
      * @return A success message if the operation is successful, or an error message if the key is not found or already deleted.
      * @throws RemoteException If a remote method call fails.
      */
     @Override
-    public String delete(String key) throws RemoteException {
+    public String DELETE(String key) throws RemoteException {
         SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss.SSS");
 
         try {
             if (!prepareToOperation(key, "", "delete")) {
-                return "KVSImpl on port " + port + " delete error: Not allowed by self-checking. Current time: " + sdf.format(new Date(System.currentTimeMillis()));
-            } else if (!server.askAllServer(key, "", "delete")) {
-                return "KVSImpl on port " + port + " delete error: Not allowed by other server. Current time: " + sdf.format(new Date(System.currentTimeMillis()));
+                return "KVSImpl on port " + port + " DELETE error: Not allowed by self-checking. Current time: " + sdf.format(new Date(System.currentTimeMillis()));
+            } else if (!server.askAllServer(key, "", "DELETE")) {
+                return "KVSImpl on port " + port + " DELETE error: Not allowed by other server. Current time: " + sdf.format(new Date(System.currentTimeMillis()));
             }
-            server.allServerDoRealUpdate(key, "", "delete");
+            server.allServerDoRealUpdate(key, "", "DELETE");
 
         } catch (RemoteException e) {
             //e.printStackTrace();
-            return "KVSImpl on port " + port + " delete error: RemoteException occurred. Current time: " + sdf.format(new Date(System.currentTimeMillis()));
+            return "KVSImpl on port " + port + " DELETE error: RemoteException occurred. Current time: " + sdf.format(new Date(System.currentTimeMillis()));
         }
         return "KVSImpl: DELETE success for key (" + key + ") Current time: " + sdf.format(new Date(System.currentTimeMillis()));
     }
 
+
+    @Override
+    public boolean propose(int proposalId, String key, String value) throws RemoteException {
+        // logic to handle proposal reception
+        return false;
+    }
+
+    @Override
+    public boolean promise(int proposalId, String key, String value) throws RemoteException {
+        // Logic to send a promise
+        return false; // Example return
+    }
+
+    @Override
+    public boolean acceptRequest(int proposalId, String key, String value) throws RemoteException {
+        // Logic to accept a proposal
+        return false; // Example return
+    }
+
+    @Override
+    public void accepted(int proposalId, String key, String value) throws RemoteException {
+        // Logic when a proposal is accepted
+    }
 }
