@@ -30,9 +30,9 @@ public interface KVSInterface extends Remote {
      */
     void allServerUpdate(String key, String value, String operation)throws RemoteException;
 
-    boolean propose(int proposalId, String key, String value) throws RemoteException;
-    boolean promise(int proposalId, String key, String value) throws RemoteException;
-    boolean acceptRequest(int proposalId, String key, String value) throws RemoteException;
-    void accepted(int proposalId, String key, String value) throws RemoteException;
+    // boolean propose(int proposalId, String key, String value) throws RemoteException;
+    // boolean promise(int proposalId, String key, String value) throws RemoteException;
+    // boolean acceptRequest(int proposalId, String key, String value) throws RemoteException;
+    // void accepted(int proposalId, String key, String value) throws RemoteException;
 
 }

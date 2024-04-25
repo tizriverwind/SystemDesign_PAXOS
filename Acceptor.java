@@ -45,6 +45,25 @@ public class Acceptor {
         }
     }
 
+    // Acceptor: Handle Prepare and Accept Requests
+    public synchronized boolean prepare(int proposalNumber, String key, String value, String operation) {
+        if (proposalNumber > highestProposedNumber) {
+            highestProposedNumber = proposalNumber;
+            return true;  // Promise to not accept lower-numbered proposals
+        }
+        return false;
+    }
+
+    public synchronized boolean accept(int proposalNumber, String key, String value, String operation) {
+        if (proposalNumber == highestProposedNumber) {
+            highestAcceptedNumber = proposalNumber;
+            acceptedValue = value;  // Accept the value
+            return true;
+        }
+        return false;
+    }
+
+    
 
 
     // Optional: method to get the current state of the acceptor

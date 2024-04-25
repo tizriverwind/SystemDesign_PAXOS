@@ -18,24 +18,32 @@ public class Learner {
         count.incrementCount();
 
         if (count.getCount() >= majorityThreshold) {
-            if (applyValueToStore(key, value)) {
+            if (applyToStore(key, value)) {
                 System.out.println("Value " + value + " for key " + key + " has been committed to the store.");
                 acceptedProposals.remove(proposalNumber);  // Clean up after applying the value
             }
         } else {
             acceptedProposals.put(proposalNumber, count);
-        }
+        
     }
 
-    private boolean applyValueToStore(String key, String value) {
-        try {
-            keyValueStore.PUT(key, value);  // Assuming PUT is used for simplicity; in real scenarios, this might depend on the operation type (PUT, DELETE, etc.)
-            return true;
-        } catch (Exception e) {
-            System.err.println("Failed to apply value to the store: " + e.getMessage());
-            return false;
+        // Learner: Finalize Decision
+        public synchronized void finalizeDecision(int proposalNumber, String key, String value, String operation) {
+            if (proposalNumber == highestAcceptedNumber) {
+                applyToStore(key, value, operation);
+            }
         }
+
+    private void applyToStore(String key, String value, String operation) {
+        if ("PUT".equals(operation)){
+            try {
+                keyValueStore.PUT(key, value);  // Assuming PUT is used for simplicity; in real scenarios, this might depend on the operation type (PUT, DELETE, etc.)
+            } catch (Exception e) {
+                System.err.println("Failed to put value to the store: " + e.getMessage());
+            } else if ("DELETE".equals(operation)) {
+            keyValueStore.remove(key);
     }
+
 
     private static class ProposalCount {
         private final String key;
