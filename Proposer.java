@@ -1,6 +1,3 @@
-import java.rmi.RemoteException;
-import java.rmi.registry.LocateRegistry;
-import java.rmi.registry.Registry;
 import java.util.List;
 // import java.rmi.Naming; // if using RMI for communication
 

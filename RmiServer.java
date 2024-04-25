@@ -15,12 +15,11 @@ public class RmiServer {
 
     /**
      * The main method that starts the RmiServer.
-     *
      * @param args Command line arguments (not used in this implementation).
      */
     public static void main(String[] args) {
-        RmiServer server = new RmiServer(); // 创建 RmiServer 实例
-        server.startServers(); // 启动服务器
+        RmiServer server = new RmiServer(); 
+        server.startServers();
     }
     /**
      * Starts multiple RMI server instances, each on a different port, and binds remote objects to the RMI registry.
@@ -31,7 +30,7 @@ public class RmiServer {
             try {
                 KVSInterface obj = new KVSImpl(this, port); // 使用 server 实例
                 java.rmi.registry.Registry registry = java.rmi.registry.LocateRegistry.createRegistry(port);
-                registry.bind("RMIDictionary" + i, obj);
+                registry.bind("RmiMap" + i, obj);
                 System.out.println("RmiServer: Server ready on port " + port);
                 serverStubs.add(obj); // 将远程对象引用添加到列表中
                 port++;

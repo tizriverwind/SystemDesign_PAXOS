@@ -4,18 +4,26 @@ import java.rmi.server.UnicastRemoteObject;
 import java.util.concurrent.ConcurrentHashMap;
 import java.text.SimpleDateFormat;
 import java.util.Date;
+import java.util.HashMap;
+import java.util.Map;
 // import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
 
-/**
- * KVSImpl is the implementation of the KVSInterface for a dictionary service.
- */
+
+
 public class KVSImpl extends UnicastRemoteObject implements KVSInterface {
 
-    private ConcurrentHashMap<String, String> dictionary;
+    private ConcurrentHashMap<String, String> map;
     private ConcurrentHashMap<String, ReentrantLock> locks;
     private RmiServer server;
     private int port;
+
+    // Paxos-related states
+    private int highestProposedNumber = 0;
+    private int highestAcceptedNumber = 0;
+    private String acceptedValue = null;
+    private final HashMap<String, Integer> proposalCounts = new HashMap<>();
+
     /**
      * Constructor for KVSImpl.
      *
@@ -23,7 +31,7 @@ public class KVSImpl extends UnicastRemoteObject implements KVSInterface {
      */
     public KVSImpl(RmiServer server, int port) throws RemoteException {
         super();
-        dictionary = new ConcurrentHashMap<>();
+        map = new ConcurrentHashMap<>();
         locks = new ConcurrentHashMap<>();
         this.server = server;
         this.port = port;
@@ -41,11 +49,11 @@ public class KVSImpl extends UnicastRemoteObject implements KVSInterface {
     public boolean prepareToOperation(String key, String value, String operation) throws RemoteException {
         ReentrantLock lock = locks.computeIfAbsent(key, k -> new ReentrantLock());
         if (lock.tryLock()) {
-            if ("PUT".equals(operation) && dictionary.containsKey(key)) {
+            if ("PUT".equals(operation) && map.containsKey(key)) {
                 System.out.println("port "+port+" already has the key, refuse to PUT.");
                 lock.unlock();
                 return false;
-            } else if ("DELETE".equals(operation) && !dictionary.containsKey(key)) {
+            } else if ("DELETE".equals(operation) && !map.containsKey(key)) {
                 System.out.println("port "+port+" has no such key, refuse to delete.");
                 lock.unlock();
                 return false;
@@ -57,7 +65,7 @@ public class KVSImpl extends UnicastRemoteObject implements KVSInterface {
         }
     }
     /**
-     * Commits an update to the dictionary by performing the actual PUT or DELETE operation,
+     * Commits an update to the map by performing the actual PUT or DELETE operation,
      * and then releases the lock associated with the key.
      *
      * @param key The key to be PUT or deleted.
@@ -70,9 +78,9 @@ public class KVSImpl extends UnicastRemoteObject implements KVSInterface {
         if (lock != null && lock.isHeldByCurrentThread()) {
             try {
                 if ("PUT".equals(operation)) {
-                    dictionary.put(key, value);
+                    map.put(key, value);
                 } else if ("DELETE".equals(operation)) {
-                    dictionary.remove(key);
+                    map.remove(key);
                 }
             } finally {
                 lock.unlock();
@@ -80,7 +88,7 @@ public class KVSImpl extends UnicastRemoteObject implements KVSInterface {
         }
     }
     /**
-     * PUTs a key-value pair into the dictionary.
+     * PUTs a key-value pair into the map.
      *
      * @param key The key to be added or updated.
      * @param value The value associated with the key.
@@ -105,7 +113,7 @@ public class KVSImpl extends UnicastRemoteObject implements KVSInterface {
     }
 
     /**
-     * Retrieves the value associated with a key from the dictionary.
+     * Retrieves the value associated with a key from the map.
      *
      * @param key The key whose value is to be retrieved.
      * @return The value associated with the key, or an error message if the key is not found.
@@ -115,15 +123,15 @@ public class KVSImpl extends UnicastRemoteObject implements KVSInterface {
     public String GET(String key) {
         SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss.SSS");
         //System.out.println("Current time: " + sdf.format(new Date(System.currentTimeMillis())));
-        if (!dictionary.containsKey(key)){
+        if (!map.containsKey(key)){
             return "KVSImpl get error: There is no such key."
                     + "Current time: " + sdf.format(new Date(System.currentTimeMillis()));
         }
-        return "KVSImpl: GET success for key (" + key + ")" + " with value (" + dictionary.get(key) + ")"
+        return "KVSImpl: GET success for key (" + key + ")" + " with value (" + map.get(key) + ")"
                 + "Current time: " + sdf.format(new Date(System.currentTimeMillis()));
     }
     /**
-     * DELETEs a key-value pair from the dictionary.
+     * DELETEs a key-value pair from the map.
      *
      * @param key The key to be deleted.
      * @return A success message if the operation is successful, or an error message if the key is not found or already deleted.
