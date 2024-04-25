@@ -1,59 +1,76 @@
 import java.rmi.RemoteException;
 import java.rmi.server.UnicastRemoteObject;
-import java.text.SimpleDateFormat;
-import java.util.Date;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.locks.ReentrantLock;
+import java.text.SimpleDateFormat;
+import java.util.Date;
 
 public class KVSImpl extends UnicastRemoteObject implements KVSInterface {
-
-    private ConcurrentHashMap<String, String> dictionary;
+    private ConcurrentHashMap<String, String> map;
     private ConcurrentHashMap<String, ReentrantLock> locks;
-    private Proposer proposer; // This references the Proposer for initiating proposals
-    private Learner learner;   // This references the Learner for applying finalized decisions
+    private Proposer proposer;
 
-    public KVSImpl(Proposer proposer, Learner learner) throws RemoteException {
+    public KVSImpl(Proposer proposer) throws RemoteException {
         super();
-        this.dictionary = new ConcurrentHashMap<>();
+        this.map = new ConcurrentHashMap<>();
         this.locks = new ConcurrentHashMap<>();
         this.proposer = proposer;
-        this.learner = learner;
     }
 
-    // Initiating a PUT operation through Proposer
+    @Override
     public String PUT(String key, String value) throws RemoteException {
-        if (proposer.propose(key, value, "PUT")) {
-            return "Proposal to PUT key-value pair initiated.";
-        } else {
-            return "Proposal to PUT key-value pair failed.";
+        SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss.SSS");
+        ReentrantLock lock = locks.computeIfAbsent(key, k -> new ReentrantLock());
+        lock.lock();
+        try {
+            if (map.containsKey(key)) {
+                lock.unlock();
+                return "Error: Key already exists. " + sdf.format(new Date());
+            }
+            // Assuming your Proposer has a method to create and send proposals correctly
+            boolean accepted = proposer.propose(key, value); // Adjust to your Proposer's actual method signature
+            if (accepted) {
+                map.put(key, value);  // Assume immediate local update; actual application should be handled by Learner
+                return "PUT successful for key " + key + ". " + sdf.format(new Date());
+            } else {
+                return "PUT operation failed. " + sdf.format(new Date());
+            }
+        } finally {
+            lock.unlock();
         }
     }
 
-    // Initiating a DELETE operation through Proposer
+    @Override
     public String DELETE(String key) throws RemoteException {
-        if (proposer.propose(key, null, "DELETE")) {
-            return "Proposal to DELETE key initiated.";
-        } else {
-            return "Proposal to DELETE key failed.";
+        SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss.SSS");
+        ReentrantLock lock = locks.computeIfAbsent(key, k -> new ReentrantLock());
+        lock.lock();
+        try {
+            if (!map.containsKey(key)) {
+                lock.unlock();
+                return "Error: Key does not exist. " + sdf.format(new Date());
+            }
+            // Adjust to your Proposer's actual method signature
+            boolean accepted = proposer.propose(key, null); // Treat null value as a delete request
+            if (accepted) {
+                map.remove(key);  // Assume immediate local update; actual application should be handled by Learner
+                return "DELETE successful for key " + key + ". " + sdf.format(new Date());
+            } else {
+                return "DELETE operation failed. " + sdf.format(new Date());
+            }
+        } finally {
+            lock.unlock();
         }
     }
 
-    // Basic GET operation that doesn't involve consensus
+    @Override
     public String GET(String key) throws RemoteException {
-        String value = dictionary.get(key);
+        SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss.SSS");
+        String value = map.get(key);
         if (value != null) {
-            return "Value retrieved: " + value;
+            return "Value for key " + key + " is " + value + ". " + sdf.format(new Date());
         } else {
-            return "Key not found.";
-        }
-    }
-
-    // Apply changes to the store as finalized by the Paxos Learner
-    protected void applyChange(String key, String value, String operation) {
-        if (operation.equals("PUT")) {
-            dictionary.put(key, value);
-        } else if (operation.equals("DELETE")) {
-            dictionary.remove(key);
+            return "Error: Key not found. " + sdf.format(new Date());
         }
     }
 }

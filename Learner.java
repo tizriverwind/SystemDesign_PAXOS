@@ -1,75 +1,33 @@
-// import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
 public class Learner {
-    private final int majorityThreshold;
-    private final Map<Integer, ProposalCount> acceptedProposals;
-    private final KVSInterface keyValueStore;
+    private final Map<Integer, String> chosenValues; // Tracks proposal numbers to chosen values
+    private final KVSInterface keyValueStore; // Interface to the key-value store for applying changes
 
-    public Learner(int majorityThreshold, KVSInterface keyValueStore) {
-        this.majorityThreshold = majorityThreshold;
+    public Learner(KVSInterface keyValueStore) {
         this.keyValueStore = keyValueStore;
-        this.acceptedProposals = new ConcurrentHashMap<>();
+        this.chosenValues = new ConcurrentHashMap<>();
     }
 
-    public void notifyAccepted(int proposalNumber, String key, String value) {
-        ProposalCount count = acceptedProposals.getOrDefault(proposalNumber, new ProposalCount(key, value));
-        count.incrementCount();
+    // This function is called when a value has been chosen (i.e., accepted by a majority)
+    public void learn(int proposalNumber, String key, String value) {
+        if (!chosenValues.containsKey(proposalNumber)) { // Only learn once per proposal
+            chosenValues.put(proposalNumber, value);
+            applyToStore(key, value);
+        }
+    }
 
-        if (count.getCount() >= majorityThreshold) {
-            if (applyToStore(key, value)) {
-                System.out.println("Value " + value + " for key " + key + " has been committed to the store.");
-                acceptedProposals.remove(proposalNumber);  // Clean up after applying the value
+    private void applyToStore(String key, String value) {
+        try {
+            // Perform the operation based on some internal logic or previously known context
+            if (value != null) {
+                keyValueStore.PUT(key, value); // Assuming non-null value means PUT
+            } else {
+                keyValueStore.DELETE(key); // Assuming null value means DELETE
             }
-        } else {
-            acceptedProposals.put(proposalNumber, count);
-        
-    }
-
-        // Learner: Finalize Decision
-        public synchronized void finalizeDecision(int proposalNumber, String key, String value, String operation) {
-            if (proposalNumber == highestAcceptedNumber) {
-                applyToStore(key, value, operation);
-            }
-        }
-
-    private void applyToStore(String key, String value, String operation) {
-        if ("PUT".equals(operation)){
-            try {
-                keyValueStore.PUT(key, value);  // Assuming PUT is used for simplicity; in real scenarios, this might depend on the operation type (PUT, DELETE, etc.)
-            } catch (Exception e) {
-                System.err.println("Failed to put value to the store: " + e.getMessage());
-            } else if ("DELETE".equals(operation)) {
-            keyValueStore.remove(key);
-    }
-
-
-    private static class ProposalCount {
-        private final String key;
-        private final String value;
-        private int count;
-
-        public ProposalCount(String key, String value) {
-            this.key = key;
-            this.value = value;
-            this.count = 0;
-        }
-
-        public void incrementCount() {
-            this.count++;
-        }
-
-        public int getCount() {
-            return count;
-        }
-
-        public String getKey() {
-            return key;
-        }
-
-        public String getValue() {
-            return value;
+        } catch (Exception e) {
+            System.err.println("Failed to apply value to the store: " + e.getMessage());
         }
     }
 }

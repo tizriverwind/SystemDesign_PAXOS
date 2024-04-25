@@ -12,27 +12,18 @@ public class Proposer {
         this.majority = (acceptors.size()/2) + 1; // Need 3 to reach consensus
     }
 
-    public void propose(String key, String value) {
+    public boolean propose(String key, String value) {
         lastProposalNumber++; // Ensure a unique, incrementing proposal number
         Message proposalMessage = new Message(Message.MessageType.PROPOSE, lastProposalNumber, key, value);
-        sendProposalToAcceptors(proposalMessage);
+        if (sendProposalToAcceptors(proposalMessage)) {
+            return true;
+        } return false;
     }
+    
 
     // Send the proposal to all acceptors
-    private void sendProposalToAcceptors(Message message) {
+    private boolean sendProposalToAcceptors(Message message) {
         int promiseCount = 0;
-        // for (Acceptor acceptor : acceptors) {
-        //     try {  
-        //         Acceptor acceptor = (Acceptor) Naming.lookup(address);
-        //         boolean promise = acceptor.receiveProposal(proposal.getProposalNumber(), proposal.getProposedValue());
-        //         if (promise) {
-        //             promiseCount++;
-        //         }
-
-        //     } catch (Exception e) {
-        //         System.out.println("Error sending proposal to Acceptor: " + e.getMessage());
-        //     }
-        // }
         for (Acceptor acceptor : acceptors) {
             if (acceptor.receiveProposal(message)) {
                 promiseCount++;
@@ -41,11 +32,13 @@ public class Proposer {
         if (promiseCount >= majority) {
             // If enough promises are received, consider this proposal accepted by the quorum
             commitProposal(message);
-        }
+            return true;
+        } return false;
     }
 
     public static class Message {
         public enum MessageType { PROPOSE, PROMISE, ACCEPT_REQUEST, ACCEPTED}
+        public enum MessageOperation { PROPOSE, PROMISE, ACCEPT_REQUEST, ACCEPTED}
         private MessageType type;
         private int proposalNumber;
         private String key;

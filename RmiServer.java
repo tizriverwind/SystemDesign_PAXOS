@@ -1,81 +1,52 @@
 import java.rmi.RemoteException;
-// import java.rmi.registry.LocateRegistry;
-// import java.rmi.registry.Registry;
+import java.rmi.registry.LocateRegistry;
+import java.rmi.registry.Registry;
 import java.util.ArrayList;
 
 public class RmiServer {
     private ArrayList<KVSInterface> serverStubs;
+    private Registry registry;
+    private static Proposer proposer; // Assuming you have a way to initialize and manage Proposer, Acceptor, and Learner
 
-    /**
-     * constructor
-     */
-    public RmiServer() {
-        serverStubs = new ArrayList<>();
+    public RmiServer(Proposer proposer) {
+        this.serverStubs = new ArrayList<>();
+        //this.proposer = proposer;
     }
 
-    /**
-     * The main method that starts the RmiServer.
-     * @param args Command line arguments (not used in this implementation).
-     */
-    public static void main(String[] args) {
-        RmiServer server = new RmiServer(); 
+    public static void main(String[] args) throws RemoteException {
+        Proposer proposer = initializeProposer();
+        RmiServer server = new RmiServer(proposer); 
         server.startServers();
     }
-    /**
-     * Starts multiple RMI server instances, each on a different port, and binds remote objects to the RMI registry.
-     */
+    
+    private static  Proposer initializeProposer() {
+        ArrayList<Acceptor> acceptors = new ArrayList<>();
+        // Initialize acceptors and add them to the list
+        for (int i = 0; i < 5; i++) {
+            Acceptor acceptor = new Acceptor(); 
+            acceptors.add(acceptor);
+        }
+        int majority = 5 / 2 + 1;
+        // Initialize the proposer with the list of acceptors and the majority required
+        proposer = new Proposer(acceptors, majority);
+        return proposer;
+    }
+    
+
     public void startServers() {
         int port = 10000;
-        for (int i = 0; i < 5; i++) {
-            try {
-                KVSInterface obj = new KVSImpl(this, port); // 使用 server 实例
-                java.rmi.registry.Registry registry = java.rmi.registry.LocateRegistry.createRegistry(port);
-                registry.bind("RmiMap" + i, obj);
-                System.out.println("RmiServer: Server ready on port " + port);
-                serverStubs.add(obj); // 将远程对象引用添加到列表中
-                port++;
-            } catch (Exception e) {
-                System.out.println("RmiServer exception: Unable to start the server.\n" + e.toString());
+        try {
+            registry = LocateRegistry.createRegistry(port);
+            for (int i = 0; i < 5; i++) {
+                KVSImpl obj = new KVSImpl(proposer);
+                String serviceName = "RmiMap" + i;
+                registry.rebind(serviceName, obj);
+                System.out.println("RmiServer: Service " + serviceName + " ready on port " + port);
+                serverStubs.add(obj);
             }
-        }
-    }
-    /**
-     * Asks all server instances whether they can accept a proposed operation (PUT or DELETE).
-     *
-     * @param key The key to be put or deleted.
-     * @param value The value to be associated with the key (ignored for DELETE operation).
-     * @param operation The type of operation ("put" or "delete").
-     * @return {@code true} if all server instances agree to the update,
-     *         {@code false} otherwise (if any server instance disagrees or cannot be contacted).
-     */
-    public boolean askAllServer(String key, String value, String operation) {
-        for (KVSInterface stub : serverStubs) {
-            try {
-                if (!stub.prepareToOperation(key, value, operation)) {
-                    return false;
-                }
-            } catch (RemoteException e) {
-                System.err.println("RmiServer Error contacting server: " + e.getMessage());
-                return false; // 如果无法联系服务器，也返回 false
-            }
-        }
-        return true; // 所有服务器实例都同意更新
-    }
-    /**
-     * Instructs all server instances to commit the actual update (PUT or DELETE) to their dictionaries.
-     *
-     * @param key The key to be put or deleted.
-     * @param value The value to be associated with the key (ignored for DELETE operation).
-     * @param operation The type of operation ("put" or "delete").
-     */
-    public void allServerDoRealUpdate(String key, String value, String operation) {
-        for (KVSInterface stub : serverStubs) {
-            try {
-                stub.allServerUpdate(key,value,operation);
-                }
-            catch (RemoteException e) {
-                System.err.println("RmiServer Error contacting server: " + e.getMessage());
-            }
+        } catch (Exception e) {
+            System.err.println("Exception while starting server: " + e.getMessage());
+            e.printStackTrace();
         }
     }
 
